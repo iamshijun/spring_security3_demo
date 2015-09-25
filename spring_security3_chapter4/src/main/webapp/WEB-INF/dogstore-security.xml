@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans xmlns="http://www.springframework.org/schema/security"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:beans="http://www.springframework.org/schema/beans"
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans 
+		http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+		http://www.springframework.org/schema/jdbc  http://www.springframework.org/schema/jdbc/spring-jdbc-3.2.xsd
+		http://www.springframework.org/schema/security 
+		http://www.springframework.org/schema/security/spring-security-3.2.xsd
+	">
+
+	<http auto-config="true" use-expressions="true">
+		<!-- Ch 4 Start -->
+		<!--  开启了SpEL,当前的rootObject为 WebSecurityExpressionRoot (-> SecurityExpressionRoot) 
+		   下面的 permitAll , hasRole , fullAuthenticated 都是 SecurityExpressionRoot 的方法 
+		 fullyAuthenticated  需要是 当前不为anoymous ,同时不为remeberme得到的认证对象(check if the authentication is an instanceof RememberMeAuthenticationToken) 
+         -->
+		
+		<!-- http 
+			<intercept-url pattern="/login.do" access="permitAll" /> 
+			<intercept-url pattern="/account/*.do" access="hasRole('ROLE_USER') and fullyAuthenticated"/>
+			<intercept-url pattern="/*" access="permitAll"/>
+		 -->         
+		
+		<!-- Ch 4 SSL Protection -->
+		<intercept-url pattern="/login.do" access="permitAll" requires-channel="https"/>
+		<intercept-url pattern="/account/*.do" access="hasRole('ROLE_USER') and fullyAuthenticated" requires-channel="https"/>
+		<intercept-url pattern="/*" access="permitAll" requires-channel="any"/>
+		
+		<!--
+			 默认的PortMapping只包含 80到443,8080到8443的,因为现在我的tomcat配置在9090端口 ，默认情况下如果portMapping找不到对应的redirect端口
+			 AbstractRetryEntryPoint 就会使用当前的端口来转发https的链接  即当前的9090,这里不用再添加上述说的两个对应,这里只需要添加新的对应关系即可
+		-->
+		<port-mappings>  
+			<port-mapping http="9090" https="9443"/>
+		</port-mappings>
+		
+		<form-login login-page="/login.do" />
+		
+		<!-- TokenBasedRememberMeServices -->
+		<!--<remember-me key="jbcpPetStore"  /> -->
+		
+		<!-- 如果指定了 token-repository-ref 或者是 data-source-ref 那么当前就是使用 PersistentTokenBasedRememberMeServices作为RMServices    -->
+		<remember-me key="jbcpPetStore" token-validity-seconds="3600" data-source-ref="dataSource"/>
+	
+		<logout logout-url="/logout"/>
+	</http>
+ 
+	<!-- Ch 4 Beginning	 -->
+	<!-- <authentication-manager alias="authenticationManager">
+		<authentication-provider >
+			<jdbc-user-service data-source-ref="dataSource"/>
+		</authentication-provider>
+	</authentication-manager> -->
+	<!-- Ch 4 Custom JDBC UserService / JdbcUserDetailsManager -->
+<!-- 	<authentication-manager alias="authenticationManager">
+		<authentication-provider user-service-ref="jdbcUserService"/>
+	</authentication-manager>
+	 -->
+	 <!-- Ch 4 Custom JDBC UserService with custom PasswordEncoder -->
+	 
+	<authentication-manager alias="authenticationManager">
+		<authentication-provider user-service-ref="jdbcUserServiceCustom">
+			<password-encoder ref="passwordEncoder">
+				<salt-source ref="saltSource"/>
+			</password-encoder>
+		</authentication-provider>
+	</authentication-manager>
+	
+	
+	<!-- Ch 4 In-memory HSQLDB -->	
+	<jdbc:embedded-database id="dataSource" type="HSQL">
+		<!-- Ch 4 Group Authentication Exercise -->
+		<jdbc:script location="classpath:security-schema.sql"/>
+		<jdbc:script location="classpath:test-users-groups-data.sql"/>
+		
+		<!-- Ch 4 Start -->
+		<!--   
+			<jdbc:script location="classpath:test-data.sql"/>
+		-->
+		
+		 <!--  Ch 4 Remember Me Persistence .using databse -->
+		 <jdbc:script location="classpath:remember-me-schema.sql"/> 
+	</jdbc:embedded-database>
+</beans:beans>

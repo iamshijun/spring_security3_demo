@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans xmlns="http://www.springframework.org/schema/security"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:beans="http://www.springframework.org/schema/beans"
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans 
+		http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/jdbc  http://www.springframework.org/schema/jdbc/spring-jdbc-3.2.xsd
+		http://www.springframework.org/schema/security 
+		http://www.springframework.org/schema/security/spring-security-3.2.xsd
+	">
+
+	<!-- Ch 5 Method Security 让Spring Security能够使用方法注解  -->
+	<global-method-security pre-post-annotations="enabled"/>
+	
+	<!-- Ch 5 JSR 250  使用jsr 250的注解  -->
+<!-- 	<global-method-security jsr250-annotations="enabled"/> -->
+	
+	
+	<!-- Ch 5 AOP using Spring Security Annotations 使用spring自身的注解-->
+	<!-- <global-method-security secured-annotations="enabled">  
+		<protect-pointcut access="ROLE_ADMIN" expression="execution(* com.packtpub.springsecurity.service.I*Service.*(..))"/>
+		<protect-pointcut access="ROLE_USER" expression="execution(* com.packtpub.springsecurity.dao.IProductDao.getCategories(..)) && args()"/>
+	</global-method-security> 
+	-->
+	<!--同Spring Security其它允许一系列安全声明的地方一样，AOP风格的方法安全是按照从顶到底的顺序进行的，所以需要按照最特殊到最不特殊的顺序来写切点。 -->
+
+	<http auto-config="true" use-expressions="true">
+		<!-- 
+		<expression-handler ref="expressionHandler"/>
+		-->
+		<intercept-url pattern="/login.do" access="permitAll"/>
+		
+		<intercept-url pattern="/home.do" access="permitAll"/>
+		<intercept-url pattern="/account/*.do" access="hasRole('ROLE_USER') and fullyAuthenticated"/>
+		<intercept-url pattern="/*" access="hasRole('ROLE_USER')"/>
+		<form-login login-page="/login.do" />
+		<!-- using Persistent RememberMeService -->
+		<remember-me key="jbcpPetStore" token-validity-seconds="3600" data-source-ref="dataSource"/>
+		<!-- 注意如果当前使用的是含有salt的密码加密方式,并且下面的sql产生的salt数据是一个随机数 ,那么但应用重启的时候 那么rememberMe 在产生签名的时候会因为使用到不同的password而不同!  -->
+		<!-- <remember-me key="jbcpPetStore" /> -->
+		<logout invalidate-session="true" logout-success-url="" logout-url="/logout"/>
+		
+	</http>
+	
+	
+	<authentication-manager alias="authenticationManager">
+		<authentication-provider user-service-ref="jdbcUserServiceCustom">
+			<password-encoder ref="passwordEncoder">
+				<salt-source ref="saltSource"/>
+			</password-encoder>
+		</authentication-provider>
+	</authentication-manager>
+
+	<jdbc:embedded-database id="dataSource" type="HSQL">
+		<jdbc:script location="classpath:security-schema.sql"/>
+		<jdbc:script location="classpath:remember-me-schema.sql"/> 
+		<jdbc:script location="classpath:test-users-groups-data.sql"/>
+	</jdbc:embedded-database>
+</beans:beans>
